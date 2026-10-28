@@ -2,14 +2,13 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <!-- THẺ QUAN TRỌNG NHẤT ĐỂ CHỐNG LỖI ZOOM MÀN HÌNH TRÊN ĐIỆN THOẠI -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR: Liên kết Hóa học (Bản Chuẩn Nhất)</title>
+    <title>AR: Liên kết Hóa học (Fix Toàn Bộ)</title>
     
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #000; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #111; }
         
         #camera-bg { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -2; background-color: #000; }
         .a-canvas { background-color: transparent !important; }
@@ -25,7 +24,7 @@
     </style>
 
     <script>
-        // COMPONENT VUỐT ĐỂ XOAY (Đã sửa lỗi chạm cảm ứng trên điện thoại)
+        // Cảm biến vuốt để xoay 360 độ siêu mượt
         AFRAME.registerComponent('drag-rotate', {
             schema: { speed: {default: 1.5} },
             init: function () {
@@ -50,12 +49,8 @@
             OnDocumentMouseUp: function () { this.ifMouseDown = false; },
             OnDocumentMouseMove: function (event) {
                 if (this.ifMouseDown) {
-                    let x_temp = event.clientX;
-                    let y_temp = event.clientY;
-                    if(event.touches && event.touches.length > 0) {
-                        x_temp = event.touches[0].clientX;
-                        y_temp = event.touches[0].clientY;
-                    }
+                    let x_temp = event.clientX || (event.touches ? event.touches[0].clientX : 0);
+                    let y_temp = event.clientY || (event.touches ? event.touches[0].clientY : 0);
                     var deltaX = x_temp - this.x_cord;
                     var deltaY = y_temp - this.y_cord;
                     
@@ -78,10 +73,13 @@
         <button class="btn btn-cov" onclick="playCovalent()">LK Cộng hóa trị (H2)</button>
     </div>
 
+    <!-- Môi trường 3D -->
     <a-scene vr-mode-ui="enabled: false" renderer="alpha: true; antialias: true">
         <a-light type="ambient" color="#ffffff" intensity="0.9"></a-light>
-        <!-- Khối chứa toàn bộ mô hình, có gắn thuộc tính vuốt để xoay -->
-        <a-entity id="main-scene" position="0 1.2 -3" drag-rotate></a-entity>
+        
+        <!-- THU NHỎ MÔ HÌNH CÒN 60% ĐỂ VỪA VẶN MÀN HÌNH ĐIỆN THOẠI -->
+        <a-entity id="main-scene" position="0 1.2 -3" scale="0.6 0.6 0.6" drag-rotate></a-entity>
+        
         <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
 
@@ -98,33 +96,19 @@
 
         const scene = document.getElementById('main-scene');
 
-        // Hàm tạo Nhãn (Đã khắc phục 100% lỗi lệch chữ)
-        function createLabel(mainStr, subSupStr, type, color, pos) {
-            let wrapper = document.createElement('a-entity');
-            wrapper.setAttribute('position', pos);
-
-            let main = document.createElement('a-text');
-            main.setAttribute('value', mainStr);
-            main.setAttribute('color', color);
-            main.setAttribute('align', 'center');
-            wrapper.appendChild(main);
-
-            if (subSupStr) {
-                let subSup = document.createElement('a-text');
-                subSup.setAttribute('value', subSupStr);
-                subSup.setAttribute('color', color);
-                subSup.setAttribute('align', 'left'); 
-                subSup.setAttribute('scale', '0.6 0.6 0.6');
-                
-                let xOffset = mainStr.length * 0.15; 
-                let yOffset = (type === 'sup') ? 0.15 : -0.15; 
-                subSup.setAttribute('position', `${xOffset} ${yOffset} 0`);
-                wrapper.appendChild(subSup);
-            }
-            return wrapper;
+        // HÀM TẠO NHÃN TEXT CHUẨN (Tự động căn chỉnh bằng code, không dùng font ngoài)
+        function addText(parent, text, color, pos, scale="1 1 1") {
+            let t = document.createElement('a-text');
+            t.setAttribute('value', text);
+            t.setAttribute('color', color);
+            t.setAttribute('align', 'center');
+            t.setAttribute('position', pos);
+            t.setAttribute('scale', scale);
+            parent.appendChild(t);
+            return t;
         }
 
-        // Hàm tạo nguyên tử
+        // HÀM TẠO NGUYÊN TỬ
         function createAtom(symbol, nucleusColor, electronColor, shellConfig, position) {
             let atom = document.createElement('a-entity');
             atom.setAttribute('position', position);
@@ -134,8 +118,7 @@
             nuc.setAttribute('color', nucleusColor);
             atom.appendChild(nuc);
 
-            let label = createLabel(symbol, '', '', '#ffffff', '0 0.35 0');
-            atom.appendChild(label);
+            let label = addText(atom, symbol, '#ffffff', '0 0.35 0');
             
             let shellEntities = [];
             shellConfig.forEach((eCount, shellIndex) => {
@@ -174,52 +157,69 @@
             scene.innerHTML = ''; 
             scene.setAttribute('rotation', '0 0 0');
 
-            // Khoảng cách an toàn để vừa màn hình dọc
-            let Na = createAtom('Na', '#e74c3c', '#ff9f43', [2, 8, 1], '-0.75 0 0');
-            let Cl = createAtom('Cl', '#2ecc71', '#00cec9', [2, 8, 7], '0.75 0 0');
+            // Khoảng cách rộng rãi
+            let Na = createAtom('Na', '#e74c3c', '#ff9f43', [2, 8, 1], '-1.4 0 0');
+            let Cl = createAtom('Cl', '#2ecc71', '#00cec9', [2, 8, 7], '1.4 0 0');
             
             scene.appendChild(Na.atom);
             scene.appendChild(Cl.atom);
 
             setTimeout(() => {
+                // 1. Dừng xoay lớp ngoài của Na và Cl để chuẩn bị chuyển e
                 let naOuterShell = Na.shellEntities[2];
+                let clOuterShell = Cl.shellEntities[2];
+                
                 naOuterShell.removeAttribute('animation');
                 naOuterShell.setAttribute('rotation', '0 0 0');
+                clOuterShell.removeAttribute('animation');
+                clOuterShell.setAttribute('rotation', '0 0 0');
+
+                // Lớp ngoài của Na thu nhỏ biến mất
                 naOuterShell.setAttribute('animation__fade', 'property: scale; to: 0 0 0; dur: 1000; easing: easeInQuad');
 
+                // 2. Electron bay CHẬM (2.5 giây) và KHỚP VỊ TRÍ
                 let flyingE = document.createElement('a-sphere');
                 flyingE.setAttribute('radius', '0.04');
                 flyingE.setAttribute('color', '#ff9f43'); 
-                flyingE.setAttribute('position', '-0.35 0 0');
+                
+                // Tọa độ bắt đầu: Rìa phải của Na (-1.4 + 0.85 = -0.55)
+                flyingE.setAttribute('position', '-0.55 0 0');
                 scene.appendChild(flyingE);
 
-                flyingE.setAttribute('animation', 'property: position; to: 0.35 0 0; dur: 1000; easing: easeInOutQuad');
+                // Tọa độ kết thúc: Rìa trái của Cl (1.4 - 0.85 = 0.55)
+                flyingE.setAttribute('animation', 'property: position; to: 0.55 0 0; dur: 2500; easing: easeInOutQuad');
 
                 setTimeout(() => {
+                    // Xóa e bay
                     scene.removeChild(flyingE); 
 
+                    // Thêm e vào vỏ Cl tại đúng vị trí rìa trái
                     let newE = document.createElement('a-sphere');
                     newE.setAttribute('radius', '0.04');
                     newE.setAttribute('color', '#ff9f43');
                     newE.setAttribute('position', '-0.85 0 0'); 
-                    Cl.shellEntities[2].appendChild(newE);
+                    clOuterShell.appendChild(newE);
 
-                    Na.atom.setAttribute('animation', 'property: position; to: -0.35 0 0; dur: 1500; easing: easeOutQuad');
-                    Cl.atom.setAttribute('animation', 'property: position; to: 0.35 0 0; dur: 1500; easing: easeOutQuad');
+                    // Khôi phục cho lớp ngoài Cl xoay tiếp
+                    clOuterShell.setAttribute('animation', `property: rotation; to: 0 360 0; dur: 6000; loop: true; easing: linear`);
 
-                    // Sửa lỗi Crash: Xóa nhãn cũ và thêm nhãn mới an toàn
+                    // 3. HÚT NHAU VỪA PHẢI (Không bị đâm xuyên)
+                    // Bán kính Na+ là 0.6. Bán kính Cl- là 0.85. Tổng = 1.45.
+                    // Đặt tọa độ cách nhau 1.5 -> Vừa khít!
+                    Na.atom.setAttribute('animation', 'property: position; to: -0.75 0 0; dur: 1500; easing: easeOutQuad');
+                    Cl.atom.setAttribute('animation', 'property: position; to: 0.75 0 0; dur: 1500; easing: easeOutQuad');
+
+                    // 4. Nhãn tên
                     Na.atom.removeChild(Na.label);
-                    let newNaLabel = createLabel('Na', '+', 'sup', '#ff7675', '0 0.35 0');
-                    Na.atom.appendChild(newNaLabel);
-                    Na.label = newNaLabel;
+                    addText(Na.atom, 'Na', '#ff7675', '0 0.35 0');
+                    addText(Na.atom, '+', '#ff7675', '0.22 0.45 0', '0.7 0.7 0.7'); // Căn phải chuẩn xác
 
                     Cl.atom.removeChild(Cl.label);
-                    let newClLabel = createLabel('Cl', '-', 'sup', '#55efc4', '0 0.35 0');
-                    Cl.atom.appendChild(newClLabel);
-                    Cl.label = newClLabel;
+                    addText(Cl.atom, 'Cl', '#55efc4', '0 0.35 0');
+                    addText(Cl.atom, '-', '#55efc4', '0.18 0.45 0', '0.9 0.9 0.9');
 
-                }, 1000); 
-            }, 2000);
+                }, 2500); // Đợi 2.5s bay xong
+            }, 1500); // Ngắm nguyên tử gốc 1.5s
         }
 
         // ==========================================
@@ -229,8 +229,8 @@
             scene.innerHTML = ''; 
             scene.setAttribute('rotation', '0 0 0');
 
-            let H1 = createAtom('H', '#0984e3', '#f1c40f', [1], '-0.6 0 0');
-            let H2 = createAtom('H', '#0984e3', '#ff7675', [1], '0.6 0 0');
+            let H1 = createAtom('H', '#0984e3', '#f1c40f', [1], '-1.0 0 0');
+            let H2 = createAtom('H', '#0984e3', '#ff7675', [1], '1.0 0 0');
 
             scene.appendChild(H1.atom);
             scene.appendChild(H2.atom);
@@ -241,6 +241,7 @@
                 H1.shellEntities[0].setAttribute('rotation', '0 0 0');
                 H2.shellEntities[0].setAttribute('rotation', '0 180 0'); 
 
+                // Hút lại gần nhau đan chéo vỏ
                 H1.atom.setAttribute('animation', 'property: position; to: -0.25 0 0; dur: 1500; easing: easeInOutQuad');
                 H2.atom.setAttribute('animation', 'property: position; to: 0.25 0 0; dur: 1500; easing: easeInOutQuad');
 
@@ -248,8 +249,9 @@
                     H1.atom.removeChild(H1.label);
                     H2.atom.removeChild(H2.label);
                     
-                    let molLabel = createLabel('Phan tu H', '2', 'sub', '#00cec9', '0 0.5 0');
-                    scene.appendChild(molLabel);
+                    // SỬA LỖI TEXT H2 (Dùng tọa độ cố định)
+                    addText(scene, 'Phan tu H', '#00cec9', '-0.05 0.5 0');
+                    addText(scene, '2', '#00cec9', '0.45 0.4 0', '0.7 0.7 0.7'); 
 
                     H1.shellEntities[0].querySelector('.electron').setAttribute('visible', 'false');
                     H2.shellEntities[0].querySelector('.electron').setAttribute('visible', 'false');
@@ -273,7 +275,7 @@
                     sharedOrbit.setAttribute('animation', 'property: rotation; to: 0 0 360; dur: 1500; loop: true; easing: linear');
 
                 }, 1500);
-            }, 2000);
+            }, 1500);
         }
     </script>
 </body>
