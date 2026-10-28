@@ -3,41 +3,44 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR: Liên kết Hóa học (Bản Sửa Lỗi Camera & Text)</title>
-    
+    <title>AR: Liên kết Hóa học (Bản Chuẩn Cuối Cùng)</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: Arial, sans-serif; }
+        /* NỀN TRONG SUỐT ĐỂ KHÔNG BAO GIỜ CHE CAMERA */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: transparent; font-family: Arial, sans-serif; }
         
-        #webcam { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -100; }
-        .a-canvas { background-color: transparent !important; }
+        /* LỚP 1: CAMERA (Dưới cùng nhưng không bị nền che) */
+        #webcam { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 1; }
         
-        #ui { position: fixed; bottom: 30px; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 100; }
+        /* LỚP 2: KHÔNG GIAN 3D AR */
+        .a-canvas { background-color: transparent !important; z-index: 2 !important; position: fixed !important; top: 0; left: 0; }
+        
+        /* LỚP 3: MÀN HÌNH KHỞI ĐỘNG (Đen thui, che mọi thứ cho đến khi có Camera) */
+        #start-ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 20; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        
+        /* LỚP 4: MENU NÚT BẤM (Nổi trên cùng) */
+        #ui { position: fixed; bottom: 30px; left: 0; width: 100%; display: none; flex-direction: column; align-items: center; gap: 15px; z-index: 10; }
+        
         .btn { padding: 15px 30px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 80%; max-width: 300px; }
         .btn-ion { background: #e74c3c; }
         .btn-cov { background: #3498db; }
-        .btn-start { background: #2ecc71; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 18px; z-index: 200; font-weight: bold; border-radius: 30px; border: none; color: white;}
         
+        #startBtn { background: #2ecc71; padding: 20px 40px; font-size: 18px; font-weight: bold; color: white; border: none; border-radius: 30px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         #hint { color: white; text-align: center; text-shadow: 1px 1px 2px black; margin-bottom: 5px; font-size: 15px; }
-        #browser-warning { display: none; position: fixed; top: 0; left: 0; width: 100%; background: #e74c3c; color: white; text-align: center; padding: 15px; z-index: 1000; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <!-- CẢNH BÁO TRÌNH DUYỆT NHÚNG -->
-    <div id="browser-warning">
-        ⚠️ Vui lòng nhấn vào dấu 3 chấm góc phải và chọn "Mở bằng trình duyệt ngoài (Chrome/Safari)" để Camera hoạt động!
-    </div>
-
-    <!-- Video nền -->
+    <!-- Camera Thực Tế -->
     <video id="webcam" autoplay playsinline webkit-playsinline muted></video>
 
-    <!-- Nút Khởi Động -->
-    <button id="startBtn" class="btn-start">BẤM ĐỂ MỞ CAMERA</button>
+    <!-- Màn hình chờ khởi động -->
+    <div id="start-ui">
+        <button id="startBtn">MỞ CAMERA BẮT ĐẦU</button>
+    </div>
 
     <!-- Menu Tùy Chọn -->
-    <div id="ui" style="display: none;">
+    <div id="ui">
         <div id="hint">👆 Vuốt màn hình để xoay 360°</div>
         <button class="btn btn-ion" onclick="playIonic()">Liên kết Ion (NaCl)</button>
         <button class="btn btn-cov" onclick="playCovalent()">LK Cộng hóa trị (H2)</button>
@@ -50,49 +53,47 @@
     </a-scene>
 
     <script>
-        // KIỂM TRA TRÌNH DUYỆT NHÚNG (Zalo, Messenger)
-        const isFacebookApp = () => {
-            var ua = navigator.userAgent || navigator.vendor || window.opera;
-            return (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1) || (ua.indexOf("Zalo") > -1);
-        };
-        if(isFacebookApp()){
-            document.getElementById('browser-warning').style.display = 'block';
-        }
-
         // ==========================================
-        // 1. KHỞI ĐỘNG CAMERA CHUẨN KÉP
+        // 1. KHỞI ĐỘNG CAMERA CHUẨN HTML5 (CHỐNG LỖI ĐEN MÀN HÌNH)
         // ==========================================
-        document.getElementById('startBtn').addEventListener('click', async () => {
+        document.getElementById('startBtn').addEventListener('click', () => {
             const startBtn = document.getElementById('startBtn');
             startBtn.innerText = "Đang kết nối Camera...";
             
-            try {
-                // Thử cách 1: Xin quyền camera sau (phổ biến)
-                let stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                startVideoStream(stream);
-            } catch (err) {
-                try {
-                    // Thử cách 2: Xin bất kỳ camera nào nếu cách 1 thất bại
-                    let stream2 = await navigator.mediaDevices.getUserMedia({ video: true });
-                    startVideoStream(stream2);
-                } catch(err2) {
-                     startBtn.innerText = "❌ LỖI: HÃY CẤP QUYỀN CAMERA";
-                     startBtn.style.background = "#e74c3c";
-                     alert("Trình duyệt không thể truy cập Camera. Hãy chắc chắn bạn đã cấp quyền hoặc thử mở bằng Google Chrome/Safari.");
-                }
-            }
-        });
-
-        function startVideoStream(stream) {
             const video = document.getElementById('webcam');
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-                video.play();
-                document.getElementById('startBtn').style.display = 'none';
-                document.getElementById('ui').style.display = 'flex';
-                document.getElementById('browser-warning').style.display = 'none';
-            };
-        }
+            
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+            .then((stream) => {
+                video.srcObject = stream;
+                video.setAttribute('playsinline', ''); // Bắt buộc cho di động
+                video.muted = true;
+                video.play().then(() => {
+                    // Khi camera lên hình, giấu màn hình đen đi
+                    document.getElementById('start-ui').style.display = 'none';
+                    document.getElementById('ui').style.display = 'flex';
+                }).catch(e => {
+                    alert("Lỗi phát video. Hãy thử lại!");
+                    startBtn.innerText = "THỬ LẠI";
+                });
+            })
+            .catch((err) => {
+                // Fallback nếu camera góc rộng không hỗ trợ
+                navigator.mediaDevices.getUserMedia({ video: true })
+                .then((stream) => {
+                    video.srcObject = stream;
+                    video.setAttribute('playsinline', '');
+                    video.muted = true;
+                    video.play();
+                    document.getElementById('start-ui').style.display = 'none';
+                    document.getElementById('ui').style.display = 'flex';
+                })
+                .catch((err2) => {
+                    startBtn.innerText = "❌ BỊ CHẶN QUYỀN";
+                    startBtn.style.background = "#e74c3c";
+                    alert("Lỗi: Trình duyệt đang chặn Camera. Hãy bấm vào biểu tượng Ổ Khóa trên thanh địa chỉ -> Bật quyền Máy ảnh!");
+                });
+            });
+        });
 
         // ==========================================
         // 2. VUỐT ĐỂ XOAY 360 ĐỘ
@@ -116,15 +117,12 @@
         });
         window.addEventListener('pointerup', () => isDragging = false);
 
-
         // ==========================================
-        // 3. HÀM VẼ NHÃN (KHÔNG DÙNG CANVAS)
+        // 3. HÀM VẼ CHỮ CỐ ĐỊNH TỌA ĐỘ
         // ==========================================
         function createText(parent, text, color, px, py, pz, scale="1 1 1") {
             let t = document.createElement('a-text');
-            // Dùng chữ ko dấu để Aframe hỗ trợ tốt nhất
-            let noAccentText = text.replace(/Phân tử/g, "Phan tu");
-            t.setAttribute('value', noAccentText);
+            t.setAttribute('value', text);
             t.setAttribute('color', color);
             t.setAttribute('align', 'center');
             t.setAttribute('position', `${px} ${py} ${pz}`);
@@ -147,7 +145,7 @@
             
             let shells = [];
             shellConfig.forEach((eCount, idx) => {
-                let radius = 0.4 + (idx * 0.3);
+                let radius = 0.4 + (idx * 0.3); // Các lớp vỏ: 0.4, 0.7, 1.0
                 let shell = document.createElement('a-entity');
                 
                 let ring = document.createElement('a-torus');
@@ -179,7 +177,7 @@
         }
 
         // ==========================================
-        // 5. LIÊN KẾT ION
+        // 5. KỊCH BẢN LIÊN KẾT ION
         // ==========================================
         function playIonic() {
             pivot.innerHTML = ''; 
@@ -219,24 +217,24 @@
 
                     clOuter.setAttribute('animation', `property: rotation; to: 0 360 0; dur: 5500; loop: true; easing: linear`);
 
+                    // Rút ngắn khoảng cách: Na vỏ 0.7, Cl vỏ 1.0. Tọa độ -0.85 và 0.85 (Cách nhau 1.7) -> Vừa khít 100%
                     Na.entity.setAttribute('animation', 'property: position; to: -0.85 0 0; dur: 1500; easing: easeOutQuad');
                     Cl.entity.setAttribute('animation', 'property: position; to: 0.85 0 0; dur: 1500; easing: easeOutQuad');
 
-                    // Thay nhãn thành Ion (Dùng child text để không bao giờ lệch)
                     Na.entity.removeChild(labelNa);
-                    let newNaLabel = createText(Na.entity, 'Na', '#ff7675', 0, 1.3, 0, '1.5 1.5 1.5');
-                    createText(newNaLabel, '+', '#ff7675', 0.28, 0.2, 0, '0.7 0.7 0.7'); 
+                    let newNa = createText(Na.entity, 'Na', '#ff7675', 0, 1.3, 0, '1.5 1.5 1.5');
+                    createText(newNa, '+', '#ff7675', 0.28, 0.22, 0, '0.7 0.7 0.7'); 
 
                     Cl.entity.removeChild(labelCl);
-                    let newClLabel = createText(Cl.entity, 'Cl', '#55efc4', 0, 1.3, 0, '1.5 1.5 1.5');
-                    createText(newClLabel, '-', '#55efc4', 0.22, 0.2, 0, '0.7 0.7 0.7');
+                    let newCl = createText(Cl.entity, 'Cl', '#55efc4', 0, 1.3, 0, '1.5 1.5 1.5');
+                    createText(newCl, '-', '#55efc4', 0.22, 0.22, 0, '0.7 0.7 0.7');
 
                 }, 2500); 
             }, 1500); 
         }
 
         // ==========================================
-        // 6. LIÊN KẾT CỘNG HÓA TRỊ (H2)
+        // 6. KỊCH BẢN LIÊN KẾT CỘNG HÓA TRỊ (H2) - KHÔNG ĐÂM XUYÊN
         // ==========================================
         function playCovalent() {
             pivot.innerHTML = ''; 
@@ -245,23 +243,23 @@
             let H1 = createAtom('#0984e3', '#f1c40f', [1], -1.2);
             let H2 = createAtom('#0984e3', '#ff7675', [1], 1.2);
 
-            let labelH1 = createText(H1.entity, 'H', '#00cec9', 0, 0.7, 0, '1.5 1.5 1.5');
-            let labelH2 = createText(H2.entity, 'H', '#00cec9', 0, 0.7, 0, '1.5 1.5 1.5');
+            let labelH1 = createText(H1.entity, 'H', '#00cec9', 0, 0.8, 0, '1.5 1.5 1.5');
+            let labelH2 = createText(H2.entity, 'H', '#00cec9', 0, 0.8, 0, '1.5 1.5 1.5');
 
             setTimeout(() => {
                 H1.shells[0].removeAttribute('animation'); H1.shells[0].setAttribute('rotation', '0 0 0');
                 H2.shells[0].removeAttribute('animation'); H2.shells[0].setAttribute('rotation', '0 180 0'); 
 
-                H1.entity.setAttribute('animation', 'property: position; to: -0.25 0 0; dur: 1500; easing: easeInOutQuad');
-                H2.entity.setAttribute('animation', 'property: position; to: 0.25 0 0; dur: 1500; easing: easeInOutQuad');
+                // Hút sát lại: Hạt nhân r=0.2. Chuyển đến tọa độ -0.35 và 0.35 (Hạt nhân sẽ nằm từ 0.15 đến 0.55).
+                H1.entity.setAttribute('animation', 'property: position; to: -0.35 0 0; dur: 1500; easing: easeInOutQuad');
+                H2.entity.setAttribute('animation', 'property: position; to: 0.35 0 0; dur: 1500; easing: easeInOutQuad');
 
                 setTimeout(() => {
                     H1.entity.removeChild(labelH1);
                     H2.entity.removeChild(labelH2);
                     
-                    // Gắn cứng số 2 vào chữ H
-                    let molText = createText(pivot, 'Phan tu H', '#00cec9', -0.1, 0.9, 0, '1.5 1.5 1.5');
-                    createText(molText, '2', '#00cec9', 0.48, -0.15, 0, '0.7 0.7 0.7');
+                    let molText = createText(pivot, 'Phan tu H', '#00cec9', '-0.1 0.9 0', '1.5 1.5 1.5');
+                    createText(molText, '2', '#00cec9', 0.43, -0.15, 0, '0.7 0.7 0.7');
 
                     H1.shells[0].innerHTML = '<a-torus radius="0.4" radius-tubular="0.005" rotation="90 0 0" color="#ecf0f1" opacity="0.5"></a-torus>';
                     H2.shells[0].innerHTML = '<a-torus radius="0.4" radius-tubular="0.005" rotation="90 0 0" color="#ecf0f1" opacity="0.5"></a-torus>';
@@ -280,7 +278,8 @@
                     sharedOrbit.appendChild(newE2);
                     pivot.appendChild(sharedOrbit);
 
-                    sharedOrbit.setAttribute('animation', 'property: rotation; to: 0 0 360; dur: 1500; loop: true; easing: linear');
+                    // THUẬT TOÁN XOAY QUANH TRỤC X: E sẽ xoay dọc theo khoảng hở giữa 2 hạt nhân, tuyệt đối không bị đâm xuyên!
+                    sharedOrbit.setAttribute('animation', 'property: rotation; to: 360 0 0; dur: 1500; loop: true; easing: linear');
 
                 }, 1500);
             }, 1500);
