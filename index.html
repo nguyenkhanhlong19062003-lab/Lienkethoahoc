@@ -3,81 +3,86 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR: Liên kết Hóa học (Bản Xây Lại Từ Đầu)</title>
+    <title>AR: Liên kết Hóa học</title>
     
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: Arial, sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #222; font-family: Arial, sans-serif; }
         
-        /* Lớp Video Camera ở dưới cùng */
         #webcam { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -100; }
-        
-        /* Nền A-Frame trong suốt */
         .a-canvas { background-color: transparent !important; }
         
-        /* UI Menu */
         #ui { position: fixed; bottom: 30px; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 100; }
         .btn { padding: 15px 30px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 80%; max-width: 300px; }
         .btn-ion { background: #e74c3c; }
         .btn-cov { background: #3498db; }
-        .btn-start { background: #2ecc71; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 18px; z-index: 200; }
+        
+        #startBtn { background: #f39c12; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 18px; z-index: 200; font-weight: bold; color: white; border: none; border-radius: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: 0.3s; }
+        #startBtn.ready { background: #2ecc71; cursor: pointer; }
         
         #hint { color: white; text-align: center; text-shadow: 1px 1px 2px black; margin-bottom: 5px; font-size: 15px; }
     </style>
 </head>
 <body>
 
-    <!-- Camera Thực Tế -->
+    <!-- Video nền -->
     <video id="webcam" autoplay playsinline muted></video>
 
-    <!-- Nút Khởi Động -->
-    <button id="startBtn" class="btn btn-start">MỞ CAMERA BẮT ĐẦU</button>
+    <!-- Nút bắt đầu thông minh -->
+    <button id="startBtn">⏳ Đang bật Camera...</button>
 
-    <!-- Menu Tùy Chọn -->
     <div id="ui" style="display: none;">
         <div id="hint">👆 Vuốt màn hình để xoay 360°</div>
         <button class="btn btn-ion" onclick="playIonic()">Liên kết Ion (NaCl)</button>
         <button class="btn btn-cov" onclick="playCovalent()">LK Cộng hóa trị (H2)</button>
     </div>
 
-    <!-- Môi Trường 3D -->
     <a-scene embedded renderer="alpha: true; antialias: true" vr-mode-ui="enabled: false">
         <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
-        
-        <!-- Cụm TRỤC XOAY chứa toàn bộ mô hình, đặt cách mắt 4m, thu nhỏ vừa vặn -->
         <a-entity id="pivot" position="0 1.2 -4" scale="0.7 0.7 0.7"></a-entity>
-        
         <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
     </a-scene>
 
     <script>
         // ==========================================
-        // KHỞI ĐỘNG CAMERA CHUẨN HTML5
+        // 1. TỰ ĐỘNG BẬT CAMERA THÔNG MINH
         // ==========================================
-        document.getElementById('startBtn').addEventListener('click', async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                const video = document.getElementById('webcam');
+        const startBtn = document.getElementById('startBtn');
+        const video = document.getElementById('webcam');
+        
+        // Xin quyền ngay khi web vừa load xong
+        window.addEventListener('load', () => {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => {
                 video.srcObject = stream;
-                video.play();
-                
-                document.getElementById('startBtn').style.display = 'none';
-                document.getElementById('ui').style.display = 'flex';
-            } catch (err) {
-                alert("LỖI CAMERA: Vui lòng cho phép quyền truy cập Máy ảnh trên trình duyệt Cốc Cốc của bạn!");
-            }
+                video.onloadedmetadata = () => {
+                    video.play();
+                    // Camera đã lên hình, đổi trạng thái nút
+                    startBtn.innerText = "BẮT ĐẦU THÍ NGHIỆM";
+                    startBtn.classList.add('ready');
+                    startBtn.onclick = () => {
+                        startBtn.style.display = 'none';
+                        document.getElementById('ui').style.display = 'flex';
+                    };
+                };
+            })
+            .catch(err => {
+                startBtn.innerText = "❌ LỖI: HÃY CẤP QUYỀN CAMERA";
+                startBtn.style.background = "#e74c3c";
+                alert("Bạn cần cho phép quyền truy cập Máy ảnh trên trình duyệt Cốc Cốc để sử dụng tính năng này!");
+            });
         });
 
         // ==========================================
-        // CƠ CHẾ VUỐT ĐỂ XOAY 360 ĐỘ SIÊU MƯỢT
+        // 2. VUỐT ĐỂ XOAY
         // ==========================================
         let isDragging = false;
         let prevX = 0, prevY = 0;
         const pivot = document.getElementById('pivot');
 
         window.addEventListener('pointerdown', (e) => {
-            if(e.target.tagName === 'BUTTON') return; // Không xoay khi bấm nút
+            if(e.target.tagName === 'BUTTON') return; 
             isDragging = true;
             prevX = e.clientX; prevY = e.clientY;
         });
@@ -85,42 +90,69 @@
             if (!isDragging) return;
             let deltaX = e.clientX - prevX;
             let deltaY = e.clientY - prevY;
-            
             pivot.object3D.rotation.y += deltaX * 0.01;
             pivot.object3D.rotation.x += deltaY * 0.01;
-            
             prevX = e.clientX; prevY = e.clientY;
         });
         window.addEventListener('pointerup', () => isDragging = false);
 
         // ==========================================
-        // HÀM VẼ NHÃN (KHÔNG LỖI FONT, KHÔNG LỆCH)
+        // 3. THUẬT TOÁN VẼ CHỮ TIẾNG VIỆT HOÀN HẢO
+        // Giải quyết 100% lỗi font chữ trong 3D
         // ==========================================
-        function createText(parent, text, color, px, py, pz, scale="1 1 1") {
-            let t = document.createElement('a-text');
-            t.setAttribute('value', text);
-            t.setAttribute('color', color);
-            t.setAttribute('align', 'center');
-            t.setAttribute('position', `${px} ${py} ${pz}`);
-            t.setAttribute('scale', scale);
-            parent.appendChild(t);
-            return t;
+        function createLabelEntity(mainStr, subSupStr, type, color, pos) {
+            // Tạo 1 khung tranh ảo (Canvas)
+            let canvas = document.createElement('canvas');
+            canvas.width = 512; 
+            canvas.height = 256;
+            let ctx = canvas.getContext('2d');
+            
+            // Cấu hình bút vẽ
+            ctx.fillStyle = color;
+            ctx.font = 'bold 80px Arial';
+            ctx.textAlign = 'center'; 
+            ctx.textBaseline = 'middle';
+
+            // Tính toán tọa độ để cân bằng chữ
+            let startX = 256 - (subSupStr ? 20 : 0); 
+            
+            // Vẽ chữ chính (VD: "Phân tử H", "Na", "Cl")
+            ctx.fillText(mainStr, startX, 128);
+
+            // Vẽ chỉ số phụ (VD: số "2", dấu "+", "-")
+            if (subSupStr) {
+                ctx.font = 'bold 55px Arial';
+                ctx.textAlign = 'left';
+                let subX = startX + (ctx.measureText(mainStr).width / 2) + 5;
+                let subY = (type === 'sup') ? 85 : 175; // Đẩy lên hoặc hạ xuống
+                ctx.fillText(subSupStr, subX, subY);
+            }
+
+            // Dán bức tranh vào không gian 3D
+            let img = document.createElement('a-image');
+            img.setAttribute('src', canvas.toDataURL());
+            img.setAttribute('width', '2');
+            img.setAttribute('height', '1');
+            img.setAttribute('position', pos);
+            return img;
         }
 
         // ==========================================
-        // HÀM VẼ NGUYÊN TỬ TÙY CHỈNH
+        // 4. HÀM TẠO NGUYÊN TỬ
         // ==========================================
-        function createAtom(nucleusColor, eColor, shellConfig, posX) {
+        function createAtom(symbol, nucleusColor, eColor, shellConfig, posX) {
             let atom = document.createElement('a-entity');
             atom.setAttribute('position', `${posX} 0 0`);
 
-            // Hạt nhân
             let nuc = document.createElement('a-sphere');
             nuc.setAttribute('radius', '0.2'); 
             nuc.setAttribute('color', nucleusColor);
             atom.appendChild(nuc);
 
-            // Các lớp vỏ e (Kích thước chuẩn: Lớp 1 r=0.4, Lớp 2 r=0.7, Lớp 3 r=1.0)
+            // Dùng thuật toán vẽ tranh để tạo nhãn
+            let label = createLabelEntity(symbol, '', '', '#ffffff', '0 1.3 0');
+            atom.appendChild(label);
+            
             let shells = [];
             shellConfig.forEach((eCount, idx) => {
                 let radius = 0.4 + (idx * 0.3);
@@ -143,7 +175,7 @@
                     shell.appendChild(e);
                 }
                 
-                let speed = 2500 + (idx * 1500); // Lớp ngoài quay chậm hơn
+                let speed = 2500 + (idx * 1500); 
                 shell.setAttribute('animation', `property: rotation; to: 0 360 0; dur: ${speed}; loop: true; easing: linear`);
                 
                 atom.appendChild(shell);
@@ -151,109 +183,88 @@
             });
 
             pivot.appendChild(atom);
-            return { entity: atom, shells: shells };
+            return { entity: atom, shells: shells, label: label };
         }
 
         // ==========================================
-        // KỊCH BẢN 1: LIÊN KẾT ION (NaCl)
+        // 5. KỊCH BẢN LIÊN KẾT ION
         // ==========================================
         function playIonic() {
             pivot.innerHTML = ''; 
-            pivot.setAttribute('rotation', '0 0 0'); // Reset góc nhìn
+            pivot.setAttribute('rotation', '0 0 0');
 
-            // Đặt Na ở -1.6, Cl ở 1.6 (Vừa đủ nhìn cả 2)
-            let Na = createAtom('#e74c3c', '#ff9f43', [2, 8, 1], -1.6);
-            let Cl = createAtom('#2ecc71', '#00cec9', [2, 8, 7], 1.6);
+            let Na = createAtom('Na', '#e74c3c', '#ff9f43', [2, 8, 1], -1.6);
+            let Cl = createAtom('Cl', '#2ecc71', '#00cec9', [2, 8, 7], 1.6);
             
-            // Vẽ nhãn ban đầu
-            let labelNa = createText(Na.entity, 'Na', '#ff7675', 0, 1.3, 0, '1.5 1.5 1.5');
-            let labelCl = createText(Cl.entity, 'Cl', '#55efc4', 0, 1.3, 0, '1.5 1.5 1.5');
-
             setTimeout(() => {
                 let naOuter = Na.shells[2];
                 let clOuter = Cl.shells[2];
                 
-                // Dừng quỹ đạo để bắn e
                 naOuter.removeAttribute('animation'); naOuter.setAttribute('rotation', '0 0 0');
                 clOuter.removeAttribute('animation'); clOuter.setAttribute('rotation', '0 0 0');
 
-                // Lớp 3 của Na biến mất
                 naOuter.setAttribute('animation__fade', 'property: scale; to: 0 0 0; dur: 800; easing: easeInQuad');
 
-                // Tạo electron bay
                 let flyingE = document.createElement('a-sphere');
                 flyingE.setAttribute('radius', '0.05');
                 flyingE.setAttribute('color', '#ff9f43'); 
-                // Tọa độ e ngoài cùng của Na: -1.6 + 1.0 = -0.6
                 flyingE.setAttribute('position', '-0.6 0 0');
                 pivot.appendChild(flyingE);
 
-                // Bay chậm 2.5s đến lỗ hổng của Cl: 1.6 - 1.0 = 0.6
                 flyingE.setAttribute('animation', 'property: position; to: 0.6 0 0; dur: 2500; easing: easeInOutQuad');
 
                 setTimeout(() => {
                     pivot.removeChild(flyingE); 
 
-                    // Bổ sung e vào lớp vỏ Cl
                     let newE = document.createElement('a-sphere');
                     newE.setAttribute('radius', '0.05');
-                    newE.setAttribute('color', '#ff9f43'); // Vẫn giữ màu cam
+                    newE.setAttribute('color', '#ff9f43'); 
                     newE.setAttribute('position', '-1.0 0 0'); 
                     clOuter.appendChild(newE);
 
-                    // Cho Cl quay tiếp
                     clOuter.setAttribute('animation', `property: rotation; to: 0 360 0; dur: 5500; loop: true; easing: linear`);
 
-                    // Kéo sát vào nhau: Na mất lớp 3 (bán kính còn 0.7). Cl giữ lớp 3 (bán kính 1.0).
-                    // Khoảng cách chuẩn là 1.7. => Na ở -0.85, Cl ở 0.85. Chạm vừa khít!
                     Na.entity.setAttribute('animation', 'property: position; to: -0.85 0 0; dur: 1500; easing: easeOutQuad');
                     Cl.entity.setAttribute('animation', 'property: position; to: 0.85 0 0; dur: 1500; easing: easeOutQuad');
 
-                    // Đổi tên thành Ion (vẽ thêm dấu + và - một cách độc lập để ko bị lỗi font)
-                    createText(Na.entity, '+', '#ff7675', 0.4, 1.5, 0, '1 1 1');
-                    createText(Cl.entity, '-', '#55efc4', 0.35, 1.5, 0, '1.5 1.5 1.5');
+                    // Thay nhãn thành Ion
+                    Na.entity.removeChild(Na.label);
+                    Na.entity.appendChild(createLabelEntity('Na', '+', 'sup', '#ff7675', '0 1.3 0'));
+
+                    Cl.entity.removeChild(Cl.label);
+                    Cl.entity.appendChild(createLabelEntity('Cl', '-', 'sup', '#55efc4', '0 1.3 0'));
 
                 }, 2500); 
             }, 1500); 
         }
 
         // ==========================================
-        // KỊCH BẢN 2: LIÊN KẾT CỘNG HÓA TRỊ (H2)
+        // 6. KỊCH BẢN LIÊN KẾT CỘNG HÓA TRỊ
         // ==========================================
         function playCovalent() {
             pivot.innerHTML = ''; 
             pivot.setAttribute('rotation', '0 0 0');
 
-            // H1 ở -1.2, H2 ở 1.2
-            let H1 = createAtom('#0984e3', '#f1c40f', [1], -1.2);
-            let H2 = createAtom('#0984e3', '#ff7675', [1], 1.2);
-
-            let labelH1 = createText(H1.entity, 'H', '#00cec9', 0, 0.7, 0, '1.5 1.5 1.5');
-            let labelH2 = createText(H2.entity, 'H', '#00cec9', 0, 0.7, 0, '1.5 1.5 1.5');
+            let H1 = createAtom('H', '#0984e3', '#f1c40f', [1], -1.2);
+            let H2 = createAtom('H', '#0984e3', '#ff7675', [1], 1.2);
 
             setTimeout(() => {
                 H1.shells[0].removeAttribute('animation'); H1.shells[0].setAttribute('rotation', '0 0 0');
                 H2.shells[0].removeAttribute('animation'); H2.shells[0].setAttribute('rotation', '0 180 0'); 
 
-                // Hút lại gần. Bán kính vỏ là 0.4. Để đan vào nhau đẹp, đặt cách nhau 0.5.
-                // => H1 ở -0.25, H2 ở 0.25.
                 H1.entity.setAttribute('animation', 'property: position; to: -0.25 0 0; dur: 1500; easing: easeInOutQuad');
                 H2.entity.setAttribute('animation', 'property: position; to: 0.25 0 0; dur: 1500; easing: easeInOutQuad');
 
                 setTimeout(() => {
-                    // Xóa chữ H riêng lẻ
-                    H1.entity.removeChild(labelH1);
-                    H2.entity.removeChild(labelH2);
+                    H1.entity.removeChild(H1.label);
+                    H2.entity.removeChild(H2.label);
                     
-                    // Vẽ nhãn "Phan tu H2" bằng các text độc lập
-                    createText(pivot, 'Phan tu H', '#00cec9', -0.2, 0.9, 0, '1.5 1.5 1.5');
-                    createText(pivot, '2', '#00cec9', 0.65, 0.75, 0, '1 1 1'); 
+                    // Hiện chữ Phân tử H2 tiếng Việt hoàn hảo
+                    pivot.appendChild(createLabelEntity('Phân tử H', '2', 'sub', '#00cec9', '0 1.3 0'));
 
-                    // Xóa hẳn 2 electron cũ
                     H1.shells[0].innerHTML = '<a-torus radius="0.4" radius-tubular="0.005" rotation="90 0 0" color="#ecf0f1" opacity="0.5"></a-torus>';
                     H2.shells[0].innerHTML = '<a-torus radius="0.4" radius-tubular="0.005" rotation="90 0 0" color="#ecf0f1" opacity="0.5"></a-torus>';
 
-                    // Tạo cụm 2 electron dùng chung xoay ở giữa
                     let sharedOrbit = document.createElement('a-entity');
                     
                     let newE1 = document.createElement('a-sphere');
@@ -268,7 +279,6 @@
                     sharedOrbit.appendChild(newE2);
                     pivot.appendChild(sharedOrbit);
 
-                    // Xoay quanh trục Z để tạo cảm giác chuyển động dọc theo vùng giao nhau
                     sharedOrbit.setAttribute('animation', 'property: rotation; to: 0 0 360; dur: 1500; loop: true; easing: linear');
 
                 }, 1500);
