@@ -2,65 +2,47 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR: Liên kết Hóa học (KHTN 7)</title>
+    <title>AR: Liên kết Hóa học (Bản Hoàn Thiện)</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; }
-        
-        /* Camera thật làm nền AR Markerless */
         #camera-bg { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -2; }
         .a-canvas { background-color: transparent !important; }
         
-        /* Giao diện UI */
-        #ui-container {
-            position: absolute; bottom: 30px; left: 0; width: 100%; 
-            display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 999;
-        }
-        .btn {
-            padding: 15px 30px; font-size: 16px; font-weight: bold; color: white; 
-            border: none; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-            width: 80%; max-width: 300px; transition: transform 0.1s;
-        }
+        #ui-container { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 999; }
+        .btn { padding: 15px 30px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.4); width: 80%; max-width: 300px; transition: transform 0.1s; }
         .btn:active { transform: scale(0.95); }
         .btn-ion { background: #e74c3c; }
         .btn-cov { background: #3498db; }
         .btn-start { background: #2ecc71; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 18px; z-index: 1000; }
-        
-        #instruction { color: white; text-shadow: 1px 1px 3px black; text-align: center; margin-bottom: 5px;}
+        #instruction { color: white; text-shadow: 1px 1px 3px black; text-align: center; margin-bottom: 5px; font-size: 18px;}
     </style>
 </head>
 <body>
 
     <video id="camera-bg" autoplay muted playsinline></video>
 
-    <!-- Nút xin quyền Camera ban đầu -->
     <button id="startBtn" class="btn btn-start">MỞ CAMERA BẮT ĐẦU</button>
 
-    <!-- Bảng điều khiển chọn liên kết -->
     <div id="ui-container" style="display: none;">
         <div id="instruction">Chọn phản ứng tạo liên kết:</div>
         <button class="btn btn-ion" onclick="playIonic()">Liên kết Ion (NaCl)</button>
-        <button class="btn btn-cov" onclick="playCovalent()">LK Cộng hóa trị (H₂)</button>
+        <button class="btn btn-cov" onclick="playCovalent()">LK Cộng hóa trị (H2)</button>
     </div>
 
-    <!-- Môi trường 3D -->
     <a-scene vr-mode-ui="enabled: false" renderer="alpha: true; antialias: true">
         <a-light type="ambient" color="#ffffff" intensity="0.9"></a-light>
-        
-        <!-- Cụm hiển thị chính (Cách mắt 2.5m) -->
         <a-entity id="main-scene" position="0 1.2 -2.5"></a-entity>
-
         <a-camera position="0 1.6 0" look-controls></a-camera>
     </a-scene>
 
     <script>
-        // Bật Camera thực tế
         document.getElementById('startBtn').addEventListener('click', () => {
             if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
                 .then(stream => { document.getElementById('camera-bg').srcObject = stream; })
-                .catch(err => { alert("Vui lòng cấp quyền Camera để sử dụng AR!"); });
+                .catch(err => { alert("Vui lòng cấp quyền Camera!"); });
             }
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('ui-container').style.display = 'flex';
@@ -68,52 +50,44 @@
 
         const scene = document.getElementById('main-scene');
 
-        // Hàm tạo 1 Nguyên tử với hạt nhân và các lớp electron quay 360 độ
-        function createAtom(symbol, nucleusColor, shellConfig, position) {
+        // Thêm tham số electronColor để phân biệt màu e của từng chất
+        function createAtom(symbol, nucleusColor, electronColor, shellConfig, position) {
             let atom = document.createElement('a-entity');
             atom.setAttribute('position', position);
 
-            // Hạt nhân
             let nuc = document.createElement('a-sphere');
-            nuc.setAttribute('radius', '0.15');
-            nuc.setAttribute('color', nucleusColor);
+            nuc.setAttribute('radius', '0.15'); nuc.setAttribute('color', nucleusColor);
             atom.appendChild(nuc);
 
-            // Nhãn tên nguyên tố
+            // Chữ tên nguyên tố (dùng font kelsonsans cho mượt)
             let text = document.createElement('a-text');
             text.setAttribute('value', symbol);
+            text.setAttribute('font', 'kelsonsans');
             text.setAttribute('align', 'center');
             text.setAttribute('position', '0 0.25 0');
             text.setAttribute('scale', '0.8 0.8 0.8');
-            text.setAttribute('color', '#fff');
+            text.setAttribute('color', '#ffffff');
             atom.appendChild(text);
             
-            // Vẽ các lớp vỏ e (K, L, M...)
             let shellEntities = [];
             shellConfig.forEach((eCount, shellIndex) => {
-                let radius = 0.35 + (shellIndex * 0.25); // Khoảng cách các lớp
-                
+                let radius = 0.35 + (shellIndex * 0.25);
                 let shell = document.createElement('a-entity');
-                // Vòng quỹ đạo
+                
                 let ring = document.createElement('a-torus');
-                ring.setAttribute('radius', radius);
-                ring.setAttribute('radius-tubular', '0.003');
-                ring.setAttribute('rotation', '90 0 0');
-                ring.setAttribute('color', '#ecf0f1');
-                ring.setAttribute('opacity', '0.4');
+                ring.setAttribute('radius', radius); ring.setAttribute('radius-tubular', '0.003');
+                ring.setAttribute('rotation', '90 0 0'); ring.setAttribute('color', '#ecf0f1'); ring.setAttribute('opacity', '0.4');
                 shell.appendChild(ring);
                 
-                // Các electron trên lớp vỏ
                 for(let i=0; i<eCount; i++) {
                     let angle = (i / eCount) * Math.PI * 2;
                     let e = document.createElement('a-sphere');
                     e.setAttribute('radius', '0.04');
-                    e.setAttribute('color', '#f1c40f'); // Electron màu vàng
+                    e.setAttribute('color', electronColor); // Đặt màu e theo yêu cầu
                     e.setAttribute('position', `${Math.cos(angle)*radius} 0 ${Math.sin(angle)*radius}`);
                     shell.appendChild(e);
                 }
                 
-                // Hiệu ứng xoay 360 độ liên tục (Lớp ngoài quay chậm hơn lớp trong)
                 let speed = 3000 + (shellIndex * 1500);
                 shell.setAttribute('animation', `property: rotation; to: 0 360 0; dur: ${speed}; loop: true; easing: linear`);
                 
@@ -125,113 +99,138 @@
         }
 
         // ==========================================
-        // 1. KỊCH BẢN LIÊN KẾT ION (Na + Cl -> NaCl)
+        // 1. KỊCH BẢN LIÊN KẾT ION (Na + Cl)
         // ==========================================
         function playIonic() {
-            scene.innerHTML = ''; // Xóa scene cũ
+            scene.innerHTML = ''; 
 
-            // Tạo Na (2, 8, 1) và Cl (2, 8, 7)
-            let Na = createAtom('Na', '#e74c3c', [2, 8, 1], '-1.5 0 0');
-            let Cl = createAtom('Cl', '#2ecc71', [2, 8, 7], '1.5 0 0');
+            // Na có e màu VÀNG (#f1c40f), Cl có e màu XANH LƠ (#00cec9)
+            let Na = createAtom('Na', '#e74c3c', '#f1c40f', [2, 8, 1], '-1.5 0 0');
+            let Cl = createAtom('Cl', '#2ecc71', '#00cec9', [2, 8, 7], '1.5 0 0');
             
             scene.appendChild(Na.atom);
             scene.appendChild(Cl.atom);
 
-            // Bắt đầu mô phỏng sau 2 giây
             setTimeout(() => {
-                // Tắt quay lớp ngoài cùng của Na để e chuẩn bị bay
                 let naOuterShell = Na.shellEntities[2];
                 naOuterShell.removeAttribute('animation');
                 naOuterShell.setAttribute('rotation', '0 0 0');
-
-                // 1. Làm mờ và ẩn lớp vỏ thứ 3 của Na
                 naOuterShell.setAttribute('animation__fade', 'property: scale; to: 0 0 0; dur: 1000; easing: easeInQuad');
 
-                // 2. Bắn 1 hạt electron từ Na sang Cl
+                // Hạt e bay đi mang màu VÀNG của Na
                 let flyingE = document.createElement('a-sphere');
                 flyingE.setAttribute('radius', '0.04');
-                flyingE.setAttribute('color', '#f1c40f');
-                flyingE.setAttribute('position', '-0.65 0 0'); // Vị trí e ngoài cùng của Na
+                flyingE.setAttribute('color', '#f1c40f'); 
+                flyingE.setAttribute('position', '-0.65 0 0');
                 scene.appendChild(flyingE);
 
-                // Bay tới lớp vỏ ngoài của Cl
                 flyingE.setAttribute('animation', 'property: position; to: 0.65 0 0; dur: 1000; easing: easeInOutQuad');
 
                 setTimeout(() => {
-                    scene.removeChild(flyingE); // Xóa e bay
+                    scene.removeChild(flyingE); 
 
-                    // Thêm 1 e vào lớp ngoài của Cl (Bây giờ thành 8e - Bền vững)
+                    // Thêm 1 e màu VÀNG vào bầy e XANH LƠ của Cl (để hs thấy rõ e này từ đâu tới)
                     let newE = document.createElement('a-sphere');
                     newE.setAttribute('radius', '0.04');
                     newE.setAttribute('color', '#f1c40f');
-                    newE.setAttribute('position', '-0.85 0 0'); // Điền vào lỗ hổng bên trái Cl
+                    newE.setAttribute('position', '-0.85 0 0'); 
                     Cl.shellEntities[2].appendChild(newE);
 
-                    // 3. Hai ion hút nhau do trái dấu (Kéo lại gần)
                     Na.atom.setAttribute('animation', 'property: position; to: -0.7 0 0; dur: 1500; easing: easeOutQuad');
                     Cl.atom.setAttribute('animation', 'property: position; to: 0.7 0 0; dur: 1500; easing: easeOutQuad');
 
-                    // Đổi tên thành Ion
-                    Na.text.setAttribute('value', 'Na+');
-                    Cl.text.setAttribute('value', 'Cl-');
+                    // --- XỬ LÝ TEXT NA+ VÀ CL- LÊN CAO ---
+                    Na.text.setAttribute('value', 'Na');
                     Na.text.setAttribute('color', '#ff7675');
+                    let naPlus = document.createElement('a-text');
+                    naPlus.setAttribute('value', '+');
+                    naPlus.setAttribute('font', 'kelsonsans');
+                    naPlus.setAttribute('position', '0.3 0.2 0'); // Đẩy dấu + lên cao góc phải
+                    naPlus.setAttribute('scale', '0.7 0.7 0.7');
+                    Na.text.appendChild(naPlus);
+
+                    Cl.text.setAttribute('value', 'Cl');
                     Cl.text.setAttribute('color', '#55efc4');
+                    let clMinus = document.createElement('a-text');
+                    clMinus.setAttribute('value', '-');
+                    clMinus.setAttribute('font', 'kelsonsans');
+                    clMinus.setAttribute('position', '0.25 0.2 0'); // Đẩy dấu - lên cao góc phải
+                    clMinus.setAttribute('scale', '0.8 0.8 0.8');
+                    Cl.text.appendChild(clMinus);
 
-                }, 1000); // Đợi e bay xong
+                }, 1000); 
 
-            }, 2000); // Đợi 2s để học sinh quan sát nguyên tử ban đầu
+            }, 2000);
         }
 
         // ==========================================
-        // 2. KỊCH BẢN CỘNG HÓA TRỊ (H + H -> H2)
+        // 2. KỊCH BẢN CỘNG HÓA TRỊ (H2)
         // ==========================================
         function playCovalent() {
             scene.innerHTML = ''; 
 
-            // Tạo 2 nguyên tử Hydrogen (Mỗi cái 1 e)
-            let H1 = createAtom('H', '#0984e3', [1], '-1.2 0 0');
-            let H2 = createAtom('H', '#0984e3', [1], '1.2 0 0');
+            // H1 e màu VÀNG, H2 e màu HỒNG để dễ phân biệt khi dùng chung
+            let H1 = createAtom('H', '#0984e3', '#f1c40f', [1], '-1.2 0 0');
+            let H2 = createAtom('H', '#0984e3', '#ff7675', [1], '1.2 0 0');
 
             scene.appendChild(H1.atom);
             scene.appendChild(H2.atom);
 
             setTimeout(() => {
-                // 1. Dừng xoay e tự do để chuẩn bị gài vào liên kết
                 H1.shellEntities[0].removeAttribute('animation');
                 H2.shellEntities[0].removeAttribute('animation');
                 H1.shellEntities[0].setAttribute('rotation', '0 0 0');
-                H2.shellEntities[0].setAttribute('rotation', '0 180 0'); // Xoay e của H2 sang đối diện
+                H2.shellEntities[0].setAttribute('rotation', '0 180 0'); 
 
-                // 2. Kéo 2 nguyên tử lại gần nhau cho giao nhau lớp vỏ
                 H1.atom.setAttribute('animation', 'property: position; to: -0.3 0 0; dur: 1500; easing: easeInOutQuad');
                 H2.atom.setAttribute('animation', 'property: position; to: 0.3 0 0; dur: 1500; easing: easeInOutQuad');
 
                 setTimeout(() => {
-                    // Cập nhật nhãn
                     H1.text.setAttribute('value', '');
                     H2.text.setAttribute('value', '');
                     
+                    // --- XỬ LÝ TEXT PHÂN TỬ H2 XUỐNG THẤP ---
                     let molText = document.createElement('a-text');
-                    molText.setAttribute('value', 'Phan tu H2');
+                    molText.setAttribute('value', 'Phan tu H');
+                    molText.setAttribute('font', 'kelsonsans');
                     molText.setAttribute('align', 'center');
                     molText.setAttribute('position', '0 0.5 0');
                     molText.setAttribute('color', '#00cec9');
+                    
+                    let subTwo = document.createElement('a-text');
+                    subTwo.setAttribute('value', '2');
+                    subTwo.setAttribute('font', 'kelsonsans');
+                    subTwo.setAttribute('position', '0.45 -0.15 0'); // Đẩy số 2 xuống thấp góc phải
+                    subTwo.setAttribute('scale', '0.7 0.7 0.7');
+                    molText.appendChild(subTwo);
+
                     scene.appendChild(molText);
 
-                    // 3. Cho cặp e dùng chung xoay quanh trục chung giữa 2 hạt nhân
+                    // --- SỬA LỖI BIẾN MẤT E: Tạo mới e ở khu vực chung ---
+                    // 1. Giấu các e cũ đi để không bị giật lag
+                    let oldE1 = H1.shellEntities[0].querySelector('a-sphere');
+                    let oldE2 = H2.shellEntities[0].querySelector('a-sphere');
+                    oldE1.setAttribute('visible', 'false');
+                    oldE2.setAttribute('visible', 'false');
+
+                    // 2. Sinh ra 2 e mới (1 vàng, 1 hồng) ở chính giữa
                     let sharedOrbit = document.createElement('a-entity');
-                    // Gỡ 2 e ra khỏi nguyên tử cũ và nhét vào quỹ đạo chung
-                    let e1 = H1.shellEntities[0].querySelector('a-sphere');
-                    let e2 = H2.shellEntities[0].querySelector('a-sphere');
                     
-                    e1.setAttribute('position', '0 0.1 0');
-                    e2.setAttribute('position', '0 -0.1 0');
+                    let newE1 = document.createElement('a-sphere');
+                    newE1.setAttribute('radius', '0.04');
+                    newE1.setAttribute('color', '#f1c40f'); // e vàng của H1
+                    newE1.setAttribute('position', '0 0.1 0');
                     
-                    sharedOrbit.appendChild(e1);
-                    sharedOrbit.appendChild(e2);
+                    let newE2 = document.createElement('a-sphere');
+                    newE2.setAttribute('radius', '0.04');
+                    newE2.setAttribute('color', '#ff7675'); // e hồng của H2
+                    newE2.setAttribute('position', '0 -0.1 0');
+                    
+                    sharedOrbit.appendChild(newE1);
+                    sharedOrbit.appendChild(newE2);
                     scene.appendChild(sharedOrbit);
 
-                    // Quỹ đạo dùng chung xoay hình số 8 hoặc xoay tròn ở giữa
+                    // Cho quỹ đạo chung xoay vòng đều đặn
                     sharedOrbit.setAttribute('animation', 'property: rotation; to: 0 0 360; dur: 1500; loop: true; easing: linear');
 
                 }, 1500);
