@@ -3,36 +3,42 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR: Liên kết Hóa học</title>
+    <title>AR: Hóa Học - Auto Camera</title>
     
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #222; font-family: Arial, sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #111; font-family: Arial, sans-serif; }
         
+        /* Lớp Camera dưới cùng */
         #webcam { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -100; }
         .a-canvas { background-color: transparent !important; }
         
-        #ui { position: fixed; bottom: 30px; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 100; }
+        /* Màn hình chờ khi đang xin quyền Camera */
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; padding: 20px; box-sizing: border-box; }
+        
+        /* UI Menu */
+        #ui { position: fixed; bottom: 30px; left: 0; width: 100%; display: none; flex-direction: column; align-items: center; gap: 15px; z-index: 100; }
         .btn { padding: 15px 30px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 80%; max-width: 300px; }
         .btn-ion { background: #e74c3c; }
         .btn-cov { background: #3498db; }
-        
-        #startBtn { background: #f39c12; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 18px; z-index: 200; font-weight: bold; color: white; border: none; border-radius: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: 0.3s; }
-        #startBtn.ready { background: #2ecc71; cursor: pointer; }
         
         #hint { color: white; text-align: center; text-shadow: 1px 1px 2px black; margin-bottom: 5px; font-size: 15px; }
     </style>
 </head>
 <body>
 
+    <!-- MÀN HÌNH CHỜ XIN QUYỀN TRỰC TIẾP -->
+    <div id="loading">
+        <h2>⏳ Đang khởi động AR...</h2>
+        <p style="color: #f1c40f;">Vui lòng bấm <b>"Cho phép"</b> (Allow) ở bảng thông báo của điện thoại để mở Camera!</p>
+    </div>
+
     <!-- Video nền -->
-    <video id="webcam" autoplay playsinline muted></video>
+    <video id="webcam" autoplay playsinline webkit-playsinline muted></video>
 
-    <!-- Nút bắt đầu thông minh -->
-    <button id="startBtn">⏳ Đang bật Camera...</button>
-
-    <div id="ui" style="display: none;">
+    <!-- Menu Tùy Chọn -->
+    <div id="ui">
         <div id="hint">👆 Vuốt màn hình để xoay 360°</div>
         <button class="btn btn-ion" onclick="playIonic()">Liên kết Ion (NaCl)</button>
         <button class="btn btn-cov" onclick="playCovalent()">LK Cộng hóa trị (H2)</button>
@@ -46,36 +52,31 @@
 
     <script>
         // ==========================================
-        // 1. TỰ ĐỘNG BẬT CAMERA THÔNG MINH
+        // 1. GỌI POPUP XIN QUYỀN NGAY LẬP TỨC 
         // ==========================================
-        const startBtn = document.getElementById('startBtn');
-        const video = document.getElementById('webcam');
-        
-        // Xin quyền ngay khi web vừa load xong
-        window.addEventListener('load', () => {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(stream => {
-                video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    video.play();
-                    // Camera đã lên hình, đổi trạng thái nút
-                    startBtn.innerText = "BẮT ĐẦU THÍ NGHIỆM";
-                    startBtn.classList.add('ready');
-                    startBtn.onclick = () => {
-                        startBtn.style.display = 'none';
-                        document.getElementById('ui').style.display = 'flex';
-                    };
-                };
-            })
-            .catch(err => {
-                startBtn.innerText = "❌ LỖI: HÃY CẤP QUYỀN CAMERA";
-                startBtn.style.background = "#e74c3c";
-                alert("Bạn cần cho phép quyền truy cập Máy ảnh trên trình duyệt Cốc Cốc để sử dụng tính năng này!");
-            });
+        // Lệnh này chạy ngay khi tải trang, ép điện thoại phải văng ra popup xin quyền
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+            const video = document.getElementById('webcam');
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                video.play();
+                // Ẩn màn hình đen, hiện ngay các nút bấm
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('ui').style.display = 'flex';
+            };
+        })
+        .catch(err => {
+            // Nếu lỡ chặn từ trước, báo lỗi rõ ràng để bạn biết cách mở
+            document.getElementById('loading').innerHTML = `
+                <h2 style="color: #e74c3c;">❌ LỖI CAMERA</h2>
+                <p>Trình duyệt đang chặn quyền Camera.</p>
+                <p>Hãy bấm vào biểu tượng <b>Ổ KHÓA</b> trên thanh địa chỉ ở trên cùng -> Chọn <b>Quyền</b> -> Bật <b>Máy ảnh</b> và tải lại trang!</p>
+            `;
         });
 
         // ==========================================
-        // 2. VUỐT ĐỂ XOAY
+        // 2. VUỐT ĐỂ XOAY 360 ĐỘ
         // ==========================================
         let isDragging = false;
         let prevX = 0, prevY = 0;
@@ -97,42 +98,34 @@
         window.addEventListener('pointerup', () => isDragging = false);
 
         // ==========================================
-        // 3. THUẬT TOÁN VẼ CHỮ TIẾNG VIỆT HOÀN HẢO
-        // Giải quyết 100% lỗi font chữ trong 3D
+        // 3. VẼ CHỮ TIẾNG VIỆT "PHÂN TỬ" CÓ DẤU
         // ==========================================
         function createLabelEntity(mainStr, subSupStr, type, color, pos) {
-            // Tạo 1 khung tranh ảo (Canvas)
             let canvas = document.createElement('canvas');
             canvas.width = 512; 
             canvas.height = 256;
             let ctx = canvas.getContext('2d');
             
-            // Cấu hình bút vẽ
             ctx.fillStyle = color;
             ctx.font = 'bold 80px Arial';
             ctx.textAlign = 'center'; 
             ctx.textBaseline = 'middle';
-
-            // Tính toán tọa độ để cân bằng chữ
-            let startX = 256 - (subSupStr ? 20 : 0); 
             
-            // Vẽ chữ chính (VD: "Phân tử H", "Na", "Cl")
+            let startX = 256 - (subSupStr ? 20 : 0); 
             ctx.fillText(mainStr, startX, 128);
 
-            // Vẽ chỉ số phụ (VD: số "2", dấu "+", "-")
             if (subSupStr) {
                 ctx.font = 'bold 55px Arial';
                 ctx.textAlign = 'left';
                 let subX = startX + (ctx.measureText(mainStr).width / 2) + 5;
-                let subY = (type === 'sup') ? 85 : 175; // Đẩy lên hoặc hạ xuống
+                let subY = (type === 'sup') ? 85 : 175; 
                 ctx.fillText(subSupStr, subX, subY);
             }
 
-            // Dán bức tranh vào không gian 3D
             let img = document.createElement('a-image');
             img.setAttribute('src', canvas.toDataURL());
-            img.setAttribute('width', '2');
-            img.setAttribute('height', '1');
+            img.setAttribute('width', '2.5');
+            img.setAttribute('height', '1.25');
             img.setAttribute('position', pos);
             return img;
         }
@@ -149,8 +142,7 @@
             nuc.setAttribute('color', nucleusColor);
             atom.appendChild(nuc);
 
-            // Dùng thuật toán vẽ tranh để tạo nhãn
-            let label = createLabelEntity(symbol, '', '', '#ffffff', '0 1.3 0');
+            let label = createLabelEntity(symbol, '', '', '#ffffff', '0 1.4 0');
             atom.appendChild(label);
             
             let shells = [];
@@ -187,7 +179,7 @@
         }
 
         // ==========================================
-        // 5. KỊCH BẢN LIÊN KẾT ION
+        // 5. LIÊN KẾT ION
         // ==========================================
         function playIonic() {
             pivot.innerHTML = ''; 
@@ -227,19 +219,18 @@
                     Na.entity.setAttribute('animation', 'property: position; to: -0.85 0 0; dur: 1500; easing: easeOutQuad');
                     Cl.entity.setAttribute('animation', 'property: position; to: 0.85 0 0; dur: 1500; easing: easeOutQuad');
 
-                    // Thay nhãn thành Ion
                     Na.entity.removeChild(Na.label);
-                    Na.entity.appendChild(createLabelEntity('Na', '+', 'sup', '#ff7675', '0 1.3 0'));
+                    Na.entity.appendChild(createLabelEntity('Na', '+', 'sup', '#ff7675', '0 1.4 0'));
 
                     Cl.entity.removeChild(Cl.label);
-                    Cl.entity.appendChild(createLabelEntity('Cl', '-', 'sup', '#55efc4', '0 1.3 0'));
+                    Cl.entity.appendChild(createLabelEntity('Cl', '-', 'sup', '#55efc4', '0 1.4 0'));
 
                 }, 2500); 
             }, 1500); 
         }
 
         // ==========================================
-        // 6. KỊCH BẢN LIÊN KẾT CỘNG HÓA TRỊ
+        // 6. LIÊN KẾT CỘNG HÓA TRỊ
         // ==========================================
         function playCovalent() {
             pivot.innerHTML = ''; 
@@ -259,8 +250,8 @@
                     H1.entity.removeChild(H1.label);
                     H2.entity.removeChild(H2.label);
                     
-                    // Hiện chữ Phân tử H2 tiếng Việt hoàn hảo
-                    pivot.appendChild(createLabelEntity('Phân tử H', '2', 'sub', '#00cec9', '0 1.3 0'));
+                    // CHỮ "Phân tử H2" TIẾNG VIỆT HOÀN HẢO
+                    pivot.appendChild(createLabelEntity('Phân tử H', '2', 'sub', '#00cec9', '0 1.4 0'));
 
                     H1.shells[0].innerHTML = '<a-torus radius="0.4" radius-tubular="0.005" rotation="90 0 0" color="#ecf0f1" opacity="0.5"></a-torus>';
                     H2.shells[0].innerHTML = '<a-torus radius="0.4" radius-tubular="0.005" rotation="90 0 0" color="#ecf0f1" opacity="0.5"></a-torus>';
