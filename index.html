@@ -3,27 +3,33 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR: Liên kết Hóa học (Sửa Lỗi Camera)</title>
+    <title>AR: Liên kết Hóa học (Fix Camera Đen)</title>
     
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #111; }
+        /* Đặt nền đen dưới cùng */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #000; }
         
-        #camera-bg { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -2; background-color: #000; }
-        .a-canvas { background-color: transparent !important; }
+        /* ĐƯA CAMERA LÊN LỚP SỐ 1 (Đè lên nền đen) */
+        #camera-bg { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 1; }
         
-        #ui-container { position: absolute; bottom: 5%; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 999; }
+        /* ĐƯA MÔ HÌNH 3D LÊN LỚP SỐ 2 (Đè lên camera) */
+        .a-canvas { background-color: transparent !important; z-index: 2 !important; }
+        
+        /* GIAO DIỆN NÚT BẤM LÊN LỚP CAO NHẤT */
+        #ui-container { position: absolute; bottom: 5%; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 10; }
         .btn { padding: 15px 20px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.4); width: 85%; max-width: 300px; text-align: center; }
         .btn:active { transform: scale(0.95); }
         .btn-ion { background: #e74c3c; }
         .btn-cov { background: #3498db; }
         
-        .btn-start { background: #2ecc71; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 15px 30px; font-size: 18px; z-index: 1000; white-space: nowrap; }
+        .btn-start { background: #2ecc71; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 15px 30px; font-size: 18px; z-index: 100; white-space: nowrap; }
         #instruction { color: white; text-shadow: 1px 1px 3px black; text-align: center; margin-bottom: 5px; font-size: 16px;}
     </style>
 
     <script>
+        // Cảm biến vuốt màn hình
         AFRAME.registerComponent('drag-rotate', {
             schema: { speed: {default: 1.5} },
             init: function () {
@@ -63,8 +69,8 @@
 </head>
 <body>
 
-    <!-- Đảm bảo thẻ video có đủ các thuộc tính ép chạy -->
-    <video id="camera-bg" autoplay muted playsinline disablePictureInPicture></video>
+    <!-- Đảm bảo video hiển thị được trên mọi dòng điện thoại (webkit-playsinline) -->
+    <video id="camera-bg" autoplay muted playsinline webkit-playsinline></video>
     <button id="startBtn" class="btn btn-start">MỞ CAMERA BẮT ĐẦU</button>
 
     <div id="ui-container" style="display: none;">
@@ -81,25 +87,25 @@
 
     <script>
         document.getElementById('startBtn').addEventListener('click', () => {
-            // Lệnh gọi Camera an toàn
-            if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                .then(stream => { 
-                    let video = document.getElementById('camera-bg');
-                    video.srcObject = stream; 
-                    video.setAttribute("playsinline", true); // Ép chạy trên di động
-                    video.play(); // Lệnh ép phát hình
-                })
-                .catch(err => { 
-                    // Hiện thông báo lỗi rõ ràng nếu Camera bị chặn
-                    alert("Lỗi Camera: " + err.message + "\n\n⚠️ HƯỚNG DẪN SỬA: Hãy bấm vào biểu tượng Ô Khóa (hoặc hình cái khiên) trên thanh địa chỉ URL -> Chọn 'Quyền' (Permissions) -> Cho phép dùng Máy ảnh (Camera). Sau đó tải lại trang!"); 
-                });
-            } else {
-                alert("Trình duyệt không hỗ trợ Camera. Hãy thử mở bằng Google Chrome!");
-            }
+            const video = document.getElementById('camera-bg');
             
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('ui-container').style.display = 'flex';
+            // Hàm khởi động Camera an toàn
+            function startVideo(stream) {
+                video.srcObject = stream;
+                video.onloadedmetadata = () => { video.play(); };
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('ui-container').style.display = 'flex';
+            }
+
+            // Gọi Camera mặt sau
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(startVideo)
+            .catch(() => {
+                // Nếu điện thoại không hiểu chữ 'environment', thử gọi camera mặc định
+                navigator.mediaDevices.getUserMedia({ video: true })
+                .then(startVideo)
+                .catch(err => alert("Trình duyệt chặn Camera! Hãy mở Cài đặt trình duyệt -> Cho phép Máy ảnh."));
+            });
         });
 
         const scene = document.getElementById('main-scene');
@@ -156,7 +162,9 @@
             return { atom, label, shellEntities };
         }
 
+        // ==========================================
         // 1. LIÊN KẾT ION
+        // ==========================================
         function playIonic() {
             scene.innerHTML = ''; 
             scene.setAttribute('rotation', '0 0 0');
@@ -212,7 +220,9 @@
             }, 1500); 
         }
 
+        // ==========================================
         // 2. LIÊN KẾT CỘNG HÓA TRỊ
+        // ==========================================
         function playCovalent() {
             scene.innerHTML = ''; 
             scene.setAttribute('rotation', '0 0 0');
